@@ -1,10 +1,8 @@
 from fastapi import FastAPI, UploadFile, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import uvicorn
-from pyngrok import ngrok
 import os
 from dotenv import load_dotenv
 from meeting_transcriber import AudioTranscriber
@@ -42,9 +40,7 @@ async def transcribe_get(request: Request):
         "index.html",
         {
             "request": request,
-            "transcript": None,
-            "processing_status": "Please upload a file to transcribe",
-            "cost_info": None
+            "transcript": None
         }
     )
 
@@ -104,13 +100,6 @@ async def transcribe(request: Request, audio: UploadFile):
             }
         )
 
-def start_server():
-    # Start ngrok tunnel
-    ngrok_tunnel = ngrok.connect(8000)
-    print(f"Public URL: {ngrok_tunnel.public_url}")
-    
-    # Start uvicorn server
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 if __name__ == "__main__":
-    start_server() 
+    port = int(os.getenv('PORT', 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port) 

@@ -81,20 +81,38 @@
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="text-center">Audio Transcription Service</h3>
-                    </div>
-                    <div class="card-body">
-                        <form action="/transcribe" method="post" enctype="multipart/form-data" id="uploadForm">
-                            <div class="mb-3">
-                                <label for="audio" class="form-label">Upload Audio or Text File</label>
-                                <input type="file" class="form-control" id="audio" name="audio" accept="audio/*,.txt" required>
+                {% if not transcript and not processing_status %}
+                <div id="uploadFormContainer">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="text-center">Audio Transcription Service</h3>
+                        </div>
+                        <div class="card-body">
+                            <form action="/transcribe" method="post" enctype="multipart/form-data" id="uploadForm">
+                                <div class="mb-3">
+                                    <label for="audio" class="form-label">Upload Audio or Text File</label>
+                                    <input type="file" class="form-control" id="audio" name="audio" accept=".wav,.mp3,.m4a,.ogg,.flac,.txt" required>
+                                    <div class="form-text text-muted">
+                                        Supported formats: WAV, MP3, M4A, OGG, FLAC, and TXT files
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100" id="submitBtn">Process</button>
+                            </form>
+                            <div id="progressContainer" class="mt-3 d-none">
+                                <div class="alert alert-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <div id="progressText">Processing your file...</div>
+                                    </div>
+                                    <div class="small text-muted mt-2" id="progressNote">This may take a few minutes depending on the file size.</div>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100" id="submitBtn">Process</button>
-                        </form>
+                        </div>
                     </div>
                 </div>
+                {% endif %}
                 
                 {% if processing_status %}
                 <div class="card mt-4">
@@ -111,6 +129,7 @@
                             {{ cost_info | safe }}
                         </div>
                         {% endif %}
+                        <button onclick="resetForm()" class="btn btn-primary mt-3">Process Another File</button>
                     </div>
                 </div>
                 {% endif %}
@@ -124,7 +143,11 @@
                         <div class="gpt-content">
                             <article class="gpt-article">
                                 {% if transcript %}
-                                    {{ transcript | replace("```html", "") | replace("```", "") | safe }}
+                                    {% if transcript.startswith('```') %}
+                                        {{ transcript.split('\n', 1)[1].rsplit('```', 1)[0] | safe }}
+                                    {% else %}
+                                        {{ transcript | safe }}
+                                    {% endif %}
                                 {% endif %}
                             </article>
                         </div>
@@ -136,11 +159,110 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    document.getElementById('uploadForm').onsubmit = function() {
-        document.getElementById('submitBtn').disabled = true;
-        document.getElementById('submitBtn').innerHTML = 'Processing... Please wait';
-        return true;
+    document.getElementById('uploadForm').onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressText = document.getElementById('progressText');
+        const progressNote = document.getElementById('progressNote');
+        const fileInput = document.getElementById('audio');
+        const uploadFormContainer = document.getElementById('uploadFormContainer');
+        
+        // Clear previous results
+        const previousResults = document.querySelectorAll('.card.mt-4');
+        previousResults.forEach(el => el.remove());
+        
+        // Show progress before hiding the form
+        progressContainer.classList.remove('d-none');
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Processing...';
+        
+        // Update progress message based on file type
+        const file = fileInput.files[0];
+        
+        if (file.type.startsWith('audio/')) {
+            progressText.textContent = 'Processing your audio file...';
+            progressNote.textContent = 'First we\'ll process your audio file into chunks if needed...';
+            
+            setTimeout(() => {
+                progressText.textContent = 'Transcribing audio...';
+                progressNote.textContent = 'Audio transcription typically takes 2-3 minutes. Please don\'t close this window.';
+            }, 2000);
+        } else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+            progressText.textContent = 'Enhancing text...';
+            progressNote.textContent = 'Text enhancement usually takes about a minute. Please wait...';
+        }
+        
+        // Submit form data
+        const formData = new FormData();
+        formData.append('audio', file);
+        
+        try {
+            const response = await fetch('/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            
+            // Now hide the form container
+            uploadFormContainer.style.display = 'none';
+            
+            // Update the page content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Get the new content
+            const newResults = tempDiv.querySelectorAll('.card.mt-4');
+            
+            // Show the results
+            const container = document.querySelector('.col-md-8');
+            newResults.forEach(result => {
+                container.appendChild(result.cloneNode(true));
+            });
+        } catch (error) {
+            console.error('Error:', error);
+            progressNote.textContent = `Error: ${error.message}`;
+            progressContainer.classList.add('alert-danger');
+        } finally {
+            // Re-enable the submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Process';
+            progressContainer.classList.add('d-none');
+        }
+        
+        return false;
     };
+
+    function resetForm() {
+        const fileInput = document.getElementById('audio');
+        const progressContainer = document.getElementById('progressContainer');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadFormContainer = document.getElementById('uploadFormContainer');
+        
+        // Remove all previous results
+        const previousResults = document.querySelectorAll('.card.mt-4');
+        previousResults.forEach(el => el.remove());
+        
+        // Reset form elements
+        fileInput.value = '';
+        progressContainer.classList.add('d-none');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Process';
+        
+        // Show upload form
+        uploadFormContainer.style.display = 'block';
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     </script>
 </body>
 </html> 
