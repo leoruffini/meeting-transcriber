@@ -11,7 +11,7 @@ from prompts import TRANSCRIPT_ENHANCEMENT_PROMPT
 import sys
 
 class AudioTranscriber:
-    def __init__(self, api_key, model="o1-preview", language="es"):
+    def __init__(self, api_key, model="gpt-4o", language="es"):
         self.client = OpenAI(api_key=api_key)
         self.language = language
         self.model = model  # Add model as class attribute
@@ -63,10 +63,8 @@ class AudioTranscriber:
 
     def enhance_transcript(self, raw_transcript):
         """Enhance transcript readability and structure using the configured model"""
-        print(f"Mejorando y estructurando la transcripción usando {self.model}...")
-        
         try:
-            print("Procesando transcripción completa...")
+            print("Mejorando transcripción...")
             
             messages = [
                 {
@@ -84,39 +82,30 @@ class AudioTranscriber:
             
             # Print detailed token usage and costs
             if hasattr(response, 'usage'):
-                print("\nToken usage and cost details:")
                 input_tokens = response.usage.prompt_tokens
                 output_tokens = response.usage.completion_tokens
                 total_tokens = response.usage.total_tokens
                 
                 # Calculate costs based on model
-                if self.model == "o1-preview":
-                    input_cost = (input_tokens / 1_000_000) * 15.00  # $15/1M input tokens
-                    output_cost = (output_tokens / 1_000_000) * 60.00  # $60/1M output tokens
-                else:  # gpt-4o
-                    input_cost = (input_tokens / 1_000_000) * 2.50   # $2.50/1M input tokens
-                    output_cost = (output_tokens / 1_000_000) * 10.00  # $10.00/1M output tokens
+                if self.model == "gpt-4o":
+                    input_cost = (input_tokens / 1_000_000) * 15.00
+                    output_cost = (output_tokens / 1_000_000) * 60.00
+                else:
+                    input_cost = (input_tokens / 1_000_000) * 2.50
+                    output_cost = (output_tokens / 1_000_000) * 10.00
                 
                 total_cost = input_cost + output_cost
                 
+                print("\nToken usage and cost details:")
                 print(f"Input tokens: {input_tokens:,} (${input_cost:.4f})")
                 print(f"Output tokens: {output_tokens:,} (${output_cost:.4f})")
                 print(f"Total tokens: {total_tokens:,}")
                 print(f"Total cost: ${total_cost:.4f}")
-                
-                if hasattr(response.usage, 'completion_tokens_details'):
-                    details = response.usage.completion_tokens_details
-                    print(f"Reasoning tokens: {details.reasoning_tokens:,}")
-                    print(f"Accepted prediction tokens: {details.accepted_prediction_tokens:,}")
-                    print(f"Rejected prediction tokens: {details.rejected_prediction_tokens:,}")
-            
-            if not enhanced_transcript or enhanced_transcript.strip() == "":
-                return raw_transcript
             
             return enhanced_transcript
             
         except Exception as e:
-            print(f"Error durante la mejora del texto: {str(e)}")
+            print(f"Error: {str(e)}")
             return raw_transcript
 
     def transcribe_audio(self, audio_path):

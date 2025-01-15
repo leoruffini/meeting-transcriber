@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcription Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Base styles */
+        .transcript-text {
+            white-space: pre-wrap;
+            font-size: 1rem;
+            line-height: 1.6;
+            padding: 1rem;
+        }
+        .transcript-section {
+            margin-bottom: 1.5rem;
+        }
+
+        /* GPT content isolation and styling */
+        .gpt-content {
+            isolation: isolate;
+        }
+        .gpt-article {
+            container-type: inline-size;
+        }
+        .gpt-article h1:first-child {
+            margin-top: 0;
+            font-size: 2rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .gpt-article h2 {
+            font-size: 1.5rem;
+            color: #34495e;
+            margin-top: 1.2rem;
+            margin-bottom: 0.8rem;
+        }
+        .gpt-article h3 {
+            font-size: 1.2rem;
+            color: #445566;
+            margin-top: 1.2rem;
+        }
+        .gpt-article ul, .gpt-article ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .gpt-article li {
+            margin: 0.3rem 0;
+        }
+        .gpt-article p {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+        .gpt-article strong {
+            color: #2c3e50;
+        }
+        .gpt-article > * + * {
+            margin-top: 1rem;
+        }
+
+        /* Ensure title is visible */
+        .gpt-article title,
+        .gpt-article h1:first-of-type {
+            display: block;
+            font-size: 2rem;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            margin-top: 0;
+        }
+
+        /* Remove any $0 or similar artifacts that might appear */
+        .gpt-article title::after,
+        .gpt-article h1::after {
+            content: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="text-center">Audio Transcription Service</h3>
+                    </div>
+                    <div class="card-body">
+                        <form action="/transcribe" method="post" enctype="multipart/form-data" id="uploadForm">
+                            <div class="mb-3">
+                                <label for="audio" class="form-label">Upload Audio or Text File</label>
+                                <input type="file" class="form-control" id="audio" name="audio" accept="audio/*,.txt" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" id="submitBtn">Process</button>
+                        </form>
+                    </div>
+                </div>
+                
+                {% if processing_status %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4>Processing Status</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            {{ processing_status }}
+                        </div>
+                        {% if cost_info %}
+                        <div class="alert alert-secondary">
+                            <h5>Cost Information:</h5>
+                            {{ cost_info | safe }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if transcript %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4>Result</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="gpt-content">
+                            <article class="gpt-article">
+                                {% if transcript %}
+                                    {{ transcript | replace("```html", "") | replace("```", "") | safe }}
+                                {% endif %}
+                            </article>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.getElementById('uploadForm').onsubmit = function() {
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitBtn').innerHTML = 'Processing... Please wait';
+        return true;
+    };
+    </script>
+</body>
+</html> 
