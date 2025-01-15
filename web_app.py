@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from meeting_transcriber import AudioTranscriber
 import io
 from contextlib import redirect_stdout
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -34,9 +35,29 @@ async def home(request: Request):
         {"request": request, "transcript": None}
     )
 
+@app.get("/transcribe", response_class=HTMLResponse)
+async def transcribe_get(request: Request):
+    # Redirect to home page if someone tries to access /transcribe directly
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "transcript": None,
+            "processing_status": "Please upload a file to transcribe",
+            "cost_info": None
+        }
+    )
+
 @app.post("/transcribe", response_class=HTMLResponse)
 async def transcribe(request: Request, audio: UploadFile):
     try:
+        # Keep logging for debugging but don't show in UI
+        log_buffer = io.StringIO()
+        log_handler = logging.StreamHandler(log_buffer)
+        log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logger = logging.getLogger('meeting_transcriber')
+        logger.addHandler(log_handler)
+        
         # Save uploaded file
         file_path = UPLOAD_DIR / audio.filename
         with open(file_path, "wb") as buffer:
@@ -49,8 +70,10 @@ async def transcribe(request: Request, audio: UploadFile):
             if file_path.suffix.lower() == '.txt':
                 with open(file_path, 'r', encoding='utf-8') as txt_file:
                     transcript = transcriber.enhance_transcript(txt_file.read())
+                    status_message = "✅ Text enhancement completed successfully"
             else:
                 transcript = transcriber.transcribe_audio(str(file_path))
+                status_message = "✅ Audio transcription completed successfully"
         
         # Extract cost information
         cost_info = ""
@@ -66,7 +89,7 @@ async def transcribe(request: Request, audio: UploadFile):
             {
                 "request": request,
                 "transcript": transcript,
-                "processing_status": "Procesamiento completado",
+                "processing_status": status_message,  # Just the simple message
                 "cost_info": cost_info
             }
         )
@@ -76,7 +99,7 @@ async def transcribe(request: Request, audio: UploadFile):
             {
                 "request": request,
                 "transcript": None,
-                "processing_status": f"Error: {str(e)}",
+                "processing_status": f"Error processing file: {str(e)}",
                 "cost_info": None
             }
         )

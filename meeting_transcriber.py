@@ -1,14 +1,21 @@
 from openai import OpenAI
 from pathlib import Path
 import time
-import wave
-import contextlib
 from dotenv import load_dotenv
 import os
 from pydub import AudioSegment
 import math
 from prompts import TRANSCRIPT_ENHANCEMENT_PROMPT
 import sys
+import logging
+
+# Configure logging after the imports
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
     def __init__(self, api_key, model="gpt-4o", language="es"):
@@ -30,12 +37,14 @@ class AudioTranscriber:
 
     def split_audio(self, audio_path, max_size_mb=15):
         """Split audio file if it's larger than max_size_mb"""
+        logger.info(f"Checking if audio file needs splitting (max size: {max_size_mb}MB)")
         file_size = Path(audio_path).stat().st_size / (1024 * 1024)  # Size in MB
         
         if file_size <= max_size_mb:
+            logger.info("Audio file is within size limits, no splitting needed")
             return [audio_path]
             
-        print(f"Audio file is {file_size:.2f}MB, splitting into chunks...")
+        logger.info(f"Audio file is {file_size:.2f}MB, splitting into chunks...")
         audio = AudioSegment.from_file(audio_path)
         duration_ms = len(audio)
         
@@ -47,6 +56,7 @@ class AudioTranscriber:
         
         chunks = []
         for i in range(num_chunks):
+            logger.info(f"Processing chunk {i+1}/{num_chunks}")
             start = i * chunk_duration
             end = min((i + 1) * chunk_duration, duration_ms)
             chunk_path = f"{Path(audio_path).stem}_chunk{i}.wav"
@@ -57,13 +67,16 @@ class AudioTranscriber:
                 parameters=["-ac", "1", "-ar", "16000"]  # Mono audio, 16kHz
             )
             chunks.append(chunk_path)
-            print(f"Created chunk {i+1}/{num_chunks}")
+            logger.info(f"Successfully created chunk {i+1}/{num_chunks}")
             
         return chunks
 
     def enhance_transcript(self, raw_transcript):
         """Enhance transcript readability and structure using the configured model"""
         try:
+            logger.info("Starting transcript enhancement process")
+            logger.info(f"Using model: {self.model}")
+            
             print("Mejorando transcripción...")
             
             messages = [
@@ -73,10 +86,13 @@ class AudioTranscriber:
                 }
             ]
             
+            logger.info("Sending request to OpenAI for enhancement")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
             )
+            
+            logger.info("Successfully received enhanced transcript")
             
             enhanced_transcript = response.choices[0].message.content
             
@@ -105,26 +121,27 @@ class AudioTranscriber:
             return enhanced_transcript
             
         except Exception as e:
-            print(f"Error: {str(e)}")
+            logger.error(f"Error during transcript enhancement: {str(e)}")
             return raw_transcript
 
     def transcribe_audio(self, audio_path):
         """Transcribe audio file using Whisper API"""
-        print("Starting transcription process...")
+        logger.info(f"Starting transcription process for: {audio_path}")
         
-        # Get duration for later cost calculation
+        logger.info("Calculating audio duration")
         duration = self.get_audio_duration(audio_path)
         
-        # Split audio if needed
+        logger.info("Checking if audio needs to be split")
         chunks = self.split_audio(audio_path)
         
         try:
+            logger.info(f"Beginning transcription of {len(chunks)} chunks")
             # Transcribe all chunks
             transcripts = []
             total_chunks = len(chunks)
             
             for i, chunk_path in enumerate(chunks):
-                print(f"Transcribing chunk {i+1}/{total_chunks}...")
+                logger.info(f"Transcribing chunk {i+1}/{total_chunks}")
                 with open(chunk_path, "rb") as audio_file:
                     result = self.client.audio.transcriptions.create(
                         model="whisper-1",
@@ -136,16 +153,18 @@ class AudioTranscriber:
                 # Clean up chunk file if it was split
                 if len(chunks) > 1:
                     Path(chunk_path).unlink()
+                logger.info(f"Successfully transcribed chunk {i+1}/{total_chunks}")
             
+            logger.info("All chunks transcribed, combining results")
             raw_transcript = " ".join(transcripts)
             
+            logger.info("Saving raw transcript")
             # Save raw transcript
             raw_output_path = Path(audio_path).stem + "_raw_transcript.txt"
             self.save_transcript(raw_transcript, raw_output_path)
             print(f"Raw transcript saved to {raw_output_path}")
             
-            # Enhance transcript
-            print("Enhancing transcript...")
+            logger.info("Starting transcript enhancement")
             enhanced_transcript = self.enhance_transcript(raw_transcript)
             
             # Calculate and display Whisper cost
@@ -163,7 +182,7 @@ class AudioTranscriber:
                 return raw_transcript
             
         except Exception as e:
-            print(f"Error during transcription: {str(e)}")
+            logger.error(f"Error during transcription: {str(e)}")
             raise
 
     def save_transcript(self, transcript, output_path):
