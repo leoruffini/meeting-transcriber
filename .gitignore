@@ -1,0 +1,49 @@
+# Virtual Environment
+venv/
+.env/
+.venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Audio files
+*.wav
+*.mp3
+*.m4a
+*.ogg
+
+# Input and Output folders
+input/
+output/
+
+# Transcription outputs
+*_transcript.txt
+
+# Environment variables
+.env
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo 
