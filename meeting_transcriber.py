@@ -27,6 +27,13 @@ class AudioTranscriber:
         print(f"Initialized with:")
         print(f"- Model: {self.model}")
         print(f"- Language: {self.language}")
+        print(f"- Cost per 1M tokens:")
+        if self.model == "o1-preview":
+            print(f"  Input: $15.00")
+            print(f"  Output: $60.00")
+        else:  # gpt-4o
+            print(f"  Input: $2.50")
+            print(f"  Output: $10.00")
 
     def get_audio_duration(self, audio_path):
         """Get duration of audio file"""
@@ -103,7 +110,7 @@ class AudioTranscriber:
                 total_tokens = response.usage.total_tokens
                 
                 # Calculate costs based on model
-                if self.model == "gpt-4o":
+                if self.model == "o1-preview":
                     input_cost = (input_tokens / 1_000_000) * 15.00
                     output_cost = (output_tokens / 1_000_000) * 60.00
                 else:
@@ -116,7 +123,7 @@ class AudioTranscriber:
                 print(f"Input tokens: {input_tokens:,} (${input_cost:.4f})")
                 print(f"Output tokens: {output_tokens:,} (${output_cost:.4f})")
                 print(f"Total tokens: {total_tokens:,}")
-                print(f"Total cost: ${total_cost:.4f}")
+                print(f"Total tokenscost: ${total_cost:.4f}")
             
             return enhanced_transcript
             

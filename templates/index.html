@@ -96,6 +96,16 @@
                                         Supported formats: WAV, MP3, M4A, OGG, FLAC, and TXT files
                                     </div>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="model" class="form-label">Select Enhancement Model</label>
+                                    <select class="form-control" id="model" name="model">
+                                        <option value="gpt-4o">GPT-4o (Faster & Cheaper)</option>
+                                        <option value="o1-preview">o1-preview (Most Powerful)</option>
+                                    </select>
+                                    <div class="form-text text-muted">
+                                        Choose the model for text enhancement
+                                    </div>
+                                </div>
                                 <button type="submit" class="btn btn-primary w-100" id="submitBtn">Process</button>
                             </form>
                             <div id="progressContainer" class="mt-3 d-none">
@@ -199,6 +209,7 @@
         // Submit form data
         const formData = new FormData();
         formData.append('audio', file);
+        formData.append('model', document.getElementById('model').value);
         
         try {
             const response = await fetch('/transcribe', {

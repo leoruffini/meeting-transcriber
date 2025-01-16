@@ -46,6 +46,9 @@ async def transcribe_get(request: Request):
 
 @app.post("/transcribe", response_class=HTMLResponse)
 async def transcribe(request: Request, audio: UploadFile):
+    form = await request.form()
+    model = form.get("model", "gpt-4o")  # Default to gpt-4o if not specified
+    
     try:
         # Keep logging for debugging but don't show in UI
         log_buffer = io.StringIO()
@@ -53,6 +56,13 @@ async def transcribe(request: Request, audio: UploadFile):
         log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         logger = logging.getLogger('meeting_transcriber')
         logger.addHandler(log_handler)
+        
+        # Initialize transcriber with selected model
+        transcriber = AudioTranscriber(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            language="es",
+            model=model
+        )
         
         # Save uploaded file
         file_path = UPLOAD_DIR / audio.filename
